@@ -5,9 +5,10 @@
 #     "altair==6.2.1",
 # ]
 # ///
+
 import marimo
 
-__generated_with = "0.23.8"
+__generated_with = "0.23.9"
 app = marimo.App(width="medium")
 
 
@@ -28,17 +29,11 @@ def _():
 
 @app.cell
 def _(math):
-    MAX_N = 500
+    MAX_N = 200
     MEMORIZED_PRIMES = (2, 3, 5, 7)
-    STIRLING_FORMULA = r"N\left(\log_{10}(N) - \log_{10}(e)\right) + 1"
 
     def true_log10_factorial(n):
         return math.lgamma(n + 1) / math.log(10)
-
-    def direct_stirling_log10(n):
-        if n <= 1:
-            return 0.0
-        return n * (math.log10(n) - math.log10(math.e)) + 1
 
     def is_easy_anchor(n):
         if n < 1:
@@ -152,30 +147,25 @@ def _(math):
     def trim_decimal(value, max_decimal_places=3):
         return f"{value:.{max_decimal_places}f}".rstrip("0").rstrip(".")
 
-    def chart_rows(
-        decimal_places,
-        visible_methods,
-    ):
+    def chart_rows(decimal_places):
         rows = []
         for n in range(1, MAX_N + 1):
             true_log = true_log10_factorial(n)
             candidates = {
                 "True log₁₀(N!)": true_log,
-                "Direct Stirling + 1": direct_stirling_log10(n),
                 "Anchored mental estimate": anchored_mental_log10_factorial(
                     n, decimal_places
                 )["estimate"],
             }
             for method, log10_value in candidates.items():
-                if method in visible_methods:
-                    rows.append(
-                        {
-                            "N": n,
-                            "method": method,
-                            "log10_value": log10_value,
-                            "exponent_error": log10_value - true_log,
-                        }
-                    )
+                rows.append(
+                    {
+                        "N": n,
+                        "method": method,
+                        "log10_value": log10_value,
+                        "exponent_error": log10_value - true_log,
+                    }
+                )
         return rows
 
     def precision_summary_rows():
@@ -183,7 +173,9 @@ def _(math):
         for decimal_places in range(1, 6):
             errors = []
             for n in range(1, MAX_N + 1):
-                estimate = anchored_mental_log10_factorial(n, decimal_places)["estimate"]
+                estimate = anchored_mental_log10_factorial(n, decimal_places)[
+                    "estimate"
+                ]
                 error = estimate - true_log10_factorial(n)
                 errors.append(abs(error))
 
@@ -191,41 +183,24 @@ def _(math):
                 [
                     {
                         "decimal_places": decimal_places,
-                        "metric": "Mean absolute exponent error",
+                        "metric": "Mean error",
                         "value": sum(errors) / len(errors),
                     },
                     {
                         "decimal_places": decimal_places,
-                        "metric": "Worst absolute exponent error",
+                        "metric": "Worst error",
                         "value": max(errors),
                     },
                 ]
             )
         return rows
 
-    def precision_heatmap_rows():
-        rows = []
-        for decimal_places in range(1, 6):
-            for n in range(1, MAX_N + 1):
-                estimate = anchored_mental_log10_factorial(n, decimal_places)["estimate"]
-                rows.append(
-                    {
-                        "N": n,
-                        "decimal_places": decimal_places,
-                        "absolute_error": abs(estimate - true_log10_factorial(n)),
-                    }
-                )
-        return rows
-
     return (
-        STIRLING_FORMULA,
         anchored_mental_log10_factorial,
         chart_rows,
-        direct_stirling_log10,
         easy_log_terms_latex,
         factorization_latex,
         memorized_constants,
-        precision_heatmap_rows,
         precision_summary_rows,
         scientific_notation_from_log10,
         trim_decimal,
@@ -242,7 +217,7 @@ def _(mo):
 
     ## The method, by rote
 
-    Here is the method for approximating the order of magnitude of $N!$, without much explanation. The approximations are tuned for $N$ up to about 100, and the end goal is to find the approximate order of magnitude: $N! \approx 10^{\text{<something>}}$.
+    Here is the method for approximating the order of magnitude of $N!$. The aim is to find the approximate order of magnitude: $N! \approx 10^{\text{<something>}}$. The approximations are intended to be possible with mental arithmetic up to an $N$ of around 100.
 
     Memorize these logarithm values:
 
@@ -284,6 +259,8 @@ def _(mo):
     \end{aligned}
     $$
 
+    The same formula works when $N < A$, but the explanation would involve division rather than multiplication.
+
     So, all in all, the approximation is:
 
     $$
@@ -303,32 +280,6 @@ def _(mo):
     5. Get back up to $52!$ approx. by adding $64.5 + 2\log_{10}50 \approx 64.5 + 3.4 = 67.9$
 
     So we have the approximate order of magnitude, $52! \approx 10^{68}$. The true value is roughly $8.07 \times 10^{67}$ so this method has found the nearest power of 10 correctly.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Estimating logarithms
-
-    The Stirling approximation involves calculating logarithms, so to able to estimate factorials with this approximation, we'll need to be able to mentally estimate logarithms as well.
-
-    One way to calculate a logarithm is to break a number up into its prime factors and then sum the logs of those prime factors, for example:
-
-    $$
-    \log_{10}(52) = \log_{10}(13 \times 2 \times 2) = \log_{10}(13) + \log_{10}(2) + \log_{10}(2)
-    $$
-
-    With this approach, it would be possible to estimate the log of any integer up to $N$ by memorizing estimates of all of the prime factors less $N$.
-
-    This is easier than needing to memorizing the logarithms of every integer up to $N$, but for $N=100$, this would require memorizing logarithms of all primes up to 100, of which there are 25! (Exclamation mark, not factorial.) That's too many logarithms to remember. I certainly won't be doing that.
-
-    But there is a neat way to reduce the amount of logarithms to memorize. Given an estimate for a factorial, $(N-1)!$, it is easy to estimate other nearby factorials like $N!$ as $N! = (N-1)! \times N$. With this, we can avoid calculating awkward logarithms by picking a nearby number which factorizes into primes we've memorized the logarithm of.
-
-    Let's work with the logarithms of 2, 3, 5 and 7. For example, to estimate $52!$ which had a 13 in its prime factorization, we could instead start by estimating $50!$ which factorizes into our chosen set of primes, and then get back $52! = 50! \times 51 \times 52$ afterwards.
-
-    This gives us 3 logarithms to remember.
     """)
     return
 
@@ -357,44 +308,50 @@ def readable_chart(chart):
 
 @app.cell(hide_code=True)
 def _(mo):
+    mo.md(r"""
+    ## Interactive example
+
+    Choose a number and the steps below will show how to approximate its factorial using this method.
+
+    You can also see what would happen if a different number of decimal places were used of all of the constants involved.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
     selected_n = mo.ui.slider(
         start=1,
-        stop=500,
+        stop=200,
         step=1,
         value=52,
-        label="N",
+        show_value=True,
     )
     decimal_places = mo.ui.slider(
         start=1,
         stop=5,
         step=1,
         value=2,
-        label="Decimal places memorized",
+        show_value=True,
     )
-    visible_methods = mo.ui.multiselect(
-        options=[
-            "True log₁₀(N!)",
-            "Direct Stirling + 1",
-            "Anchored mental estimate",
-        ],
-        value=[
-            "True log₁₀(N!)",
-            "Direct Stirling + 1",
-            "Anchored mental estimate",
-        ],
-        label="Series",
-    )
+    mo.md(
+        f"""
+        **N**
 
-    mo.vstack([selected_n, decimal_places, visible_methods])
-    return decimal_places, selected_n, visible_methods
+        {selected_n}
+
+        **Decimal places memorized**
+
+        {decimal_places}
+        """
+    )
+    return decimal_places, selected_n
 
 
 @app.cell(hide_code=True)
 def _(
-    STIRLING_FORMULA,
     anchored_mental_log10_factorial,
     decimal_places,
-    direct_stirling_log10,
     easy_log_terms_latex,
     factorization_latex,
     memorized_constants,
@@ -407,7 +364,6 @@ def _(
     n = selected_n.value
     places = decimal_places.value
     true_log = true_log10_factorial(n)
-    direct_log = direct_stirling_log10(n)
     mental = anchored_mental_log10_factorial(n, places)
     anchor = mental["anchor"]
     distance = n - anchor
@@ -420,6 +376,11 @@ def _(
         rf"- $\log_{{10}}(e) \approx {constants['stirling']:.{places}f}$",
     ]
     constant_list = "\n".join(constant_rows)
+    correction_expression = (
+        rf"+ {distance} \times {mental['anchor_log']:.{places}f}"
+        if distance >= 0
+        else rf"- {abs(distance)} \times {mental['anchor_log']:.{places}f}"
+    )
 
     if anchor <= 1:
         anchor_factorial_steps = r"""
@@ -428,9 +389,9 @@ def _(
     \]
     """
     else:
-        base_anchor_factorial_log = anchor * (
-            mental["anchor_log"] - constants["stirling"]
-        ) + 1
+        base_anchor_factorial_log = (
+            anchor * (mental["anchor_log"] - constants["stirling"]) + 1
+        )
         anchor_factorial_steps = rf"""
     \[
     \log_{{10}}({anchor}!)
@@ -439,40 +400,9 @@ def _(
     \]
     """
 
-    correction_count = abs(distance)
-    if correction_count == 0:
-        correction_phrase = "make no correction because the target is the anchor"
-    elif correction_count == 1:
-        correction_phrase = (
-            f"multiply by approximately {anchor}"
-            if distance > 0
-            else f"divide by approximately {anchor}"
-        )
-    else:
-        correction_phrase = (
-            f"multiply by approximately {anchor}^{correction_count}"
-            if distance > 0
-            else f"divide by approximately {anchor}^{correction_count}"
-        )
-    correction_expression = (
-        rf"+ {distance} \times {mental['anchor_log']:.{places}f}"
-        if distance >= 0
-        else rf"- {abs(distance)} \times {mental['anchor_log']:.{places}f}"
-    )
-
     mo.md(
         rf"""
-    ## Interactive estimate
-
-    Anchor rule: **nearest easy anchor that is also a multiple of 5**.
-
-    Approximation formula:
-
-    \[
-    {STIRLING_FORMULA}
-    \]
-
-    ### 1. Choose a round easy anchor
+    ### 1. Choose an anchor near N which will be easier to work with
 
     For **{n}!**, the selected anchor is **{anchor}**.
 
@@ -480,9 +410,9 @@ def _(
     {anchor} = {factorization_latex(anchor)}
     \]
 
-    ### 2. Estimate the anchor's logarithm
+    ### 2. Approximate the anchor's logarithm
 
-    With constants rounded to {places} decimal place{'s' if places != 1 else ''}:
+    With constants rounded to {places} decimal place{"s" if places != 1 else ""}:
 
     {constant_list}
 
@@ -492,19 +422,11 @@ def _(
     \approx {mental["anchor_log"]:.{places}f}
     \]
 
-    ### 3. Estimate the anchor factorial
+    ### 3. Approximate the log of the anchor factorial
 
     {anchor_factorial_steps}
 
-    So the anchor factorial estimate is:
-
-    \[
-    \log_{{10}}({anchor}!) \approx {trim_decimal(mental["anchor_factorial_log"])}
-    \]
-
     ### 4. Correct from the anchor to the target
-
-    The shortcut is to {correction_phrase}, so:
 
     \[
     \log_{{10}}({n}!) \approx \log_{{10}}({anchor}!) + ({n} - {anchor})\log_{{10}}({anchor})
@@ -514,33 +436,24 @@ def _(
     \log_{{10}}({n}!) \approx {trim_decimal(mental["anchor_factorial_log"])} {correction_expression} = {trim_decimal(mental["estimate"])}
     \]
 
-    ### 5. Compare with the true value
+    ### Comparison with the true value
 
     | Quantity | Value |
     | --- | ---: |
-    | True $\log_{{10}}({n}!)$ | {true_log:.3f} |
-    | Direct Stirling + 1 $\log_{{10}}({n}!)$ | {direct_log:.3f} |
-    | Anchored mental $\log_{{10}}({n}!)$ | {mental["estimate"]:.3f} |
-    | Direct Stirling + 1 exponent error | {direct_log - true_log:+.3f} |
-    | Anchored mental exponent error | {mental["estimate"] - true_log:+.3f} |
-    | True value | {scientific_notation_from_log10(true_log)} |
-    | Anchored mental estimate | {scientific_notation_from_log10(mental["estimate"])} |
+    | Actual $\log_{{10}}({n}!)$ | {true_log:.3f} |
+    | Approximated $\log_{{10}}({n}!)$ | {mental["estimate"]:.3f} |
+    | Approximation - actual | {mental["estimate"] - true_log:+.3f} |
+    | Actual {n}! | {scientific_notation_from_log10(true_log)} |
+    | Approximated {n}! | {scientific_notation_from_log10(mental["estimate"])} |
     """
     )
     return
 
 
 @app.cell(hide_code=True)
-def _(alt, chart_rows, decimal_places, mo, visible_methods):
+def _(alt, chart_rows, decimal_places, mo):
     estimate_chart = (
-        alt.Chart(
-            alt.Data(
-                values=chart_rows(
-                    decimal_places.value,
-                    visible_methods.value,
-                )
-            )
-        )
+        alt.Chart(alt.Data(values=chart_rows(decimal_places.value)))
         .mark_line(point=False)
         .encode(
             x=alt.X("N:Q", title="N", axis=alt.Axis(labelAngle=0)),
@@ -571,13 +484,10 @@ def _(alt, chart_rows, decimal_places, mo, visible_methods):
 
 
 @app.cell(hide_code=True)
-def _(alt, chart_rows, decimal_places, mo, visible_methods):
+def _(alt, chart_rows, decimal_places, mo):
     error_rows = [
         row
-        for row in chart_rows(
-            decimal_places.value,
-            visible_methods.value,
-        )
+        for row in chart_rows(decimal_places.value)
         if row["method"] != "True log₁₀(N!)"
     ]
 
@@ -587,7 +497,6 @@ def _(alt, chart_rows, decimal_places, mo, visible_methods):
         .encode(
             x=alt.X("N:Q", title="N", axis=alt.Axis(labelAngle=0)),
             y=alt.Y("exponent_error:Q", title="Estimated - true log₁₀(N!)"),
-            color=alt.Color("method:N", title="Series"),
             tooltip=[
                 alt.Tooltip("N:Q", format=".0f"),
                 alt.Tooltip("method:N"),
@@ -629,7 +538,7 @@ def _(alt, chart_rows, decimal_places, mo, visible_methods):
 
 
 @app.cell(hide_code=True)
-def _(alt, mo, precision_heatmap_rows, precision_summary_rows):
+def _(alt, mo, precision_summary_rows):
     summary_chart = (
         alt.Chart(alt.Data(values=precision_summary_rows()))
         .mark_line(point=True)
@@ -650,43 +559,10 @@ def _(alt, mo, precision_heatmap_rows, precision_summary_rows):
         .properties(width="container", height=260)
     )
 
-    heatmap = (
-        alt.Chart(alt.Data(values=precision_heatmap_rows()))
-        .mark_rect()
-        .encode(
-            x=alt.X(
-                "N:O",
-                title="N",
-                axis=alt.Axis(labelAngle=0, labelOverlap="greedy"),
-            ),
-            y=alt.Y(
-                "decimal_places:O",
-                title="Decimal places memorized",
-                axis=alt.Axis(labelAngle=0),
-            ),
-            color=alt.Color(
-                "absolute_error:Q",
-                title="Absolute exponent error",
-                scale=alt.Scale(scheme="viridis"),
-            ),
-            tooltip=[
-                alt.Tooltip("N:O"),
-                alt.Tooltip("decimal_places:O", title="Decimal places"),
-                alt.Tooltip(
-                    "absolute_error:Q",
-                    title="Absolute exponent error",
-                    format=".3f",
-                ),
-            ],
-        )
-        .properties(width="container", height=180)
-    )
-
     mo.vstack(
         [
             mo.md("### How much do extra memorized digits help?"),
             readable_chart(summary_chart),
-            readable_chart(heatmap),
         ]
     )
     return

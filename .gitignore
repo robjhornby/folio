@@ -10,3 +10,8 @@ devbox.lock
 
 .marimo/
 __marimo__/
+
+
+.envrc
+
+local/
