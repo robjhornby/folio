@@ -5,9 +5,9 @@
     "init_hook": [". $VENV_DIR/bin/activate"],
     "scripts": {
       "build": [
-        "uv run build.py --output_dir '_site' --template 'templates/tailwind.html.j2'"
+        "make build"
       ],
-      "serve": ["python -m http.server -d _site"]
+      "serve": ["make serve"]
     }
   }
 }
