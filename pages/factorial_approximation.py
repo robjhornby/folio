@@ -4,12 +4,18 @@
 #     "marimo==0.23.9",
 #     "altair==6.2.1",
 # ]
+#
+# [tool.folio.export]
+# slug = "factorial-approximation"
 # ///
 
 import marimo
 
 __generated_with = "0.23.9"
-app = marimo.App(width="medium")
+app = marimo.App(
+    width="medium",
+    app_title="Approximating factorials in your head",
+)
 
 
 @app.cell

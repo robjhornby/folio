@@ -3,6 +3,7 @@ _site/
 .DS_Store
 __pycache__/
 *.py[cod]
+.vscode/
 
 .venv/
 .devbox/
@@ -15,3 +16,5 @@ __marimo__/
 .envrc
 
 local/
+
+AGENTS.md

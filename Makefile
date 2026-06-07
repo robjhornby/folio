@@ -25,8 +25,8 @@ help:
 
 list-pages:
 	@for page in $(PAGES); do \
-		name="$$(basename "$${page%.py}")"; \
-		printf "%s -> /%s/\n" "$$page" "$$name"; \
+		slug="$$(uv run --isolated --no-project --python '>=3.12' python tools/page_export_options.py --slug "$$page")"; \
+		printf "%s -> /%s/\n" "$$page" "$$slug"; \
 	done
 
 edit:
@@ -68,15 +68,20 @@ $(PAGE_NAMES):
 	@:
 
 check:
-	uv run --isolated --no-project --python '>=3.12' python -m py_compile $(PAGES)
+	uv run --isolated --no-project --python '>=3.12' python -m py_compile $(PAGES) tools/page_export_options.py
+	@for page in $(PAGES); do \
+		uv run --isolated --no-project --python '>=3.12' python tools/page_export_options.py --slug "$$page" >/dev/null; \
+		uv run --isolated --no-project --python '>=3.12' python tools/page_export_options.py --export-options "$$page" >/dev/null; \
+	done
 
 build: clean
 	mkdir -p $(SITE_DIR)
 	cp index.html $(SITE_DIR)/index.html
 	@for page in $(PAGES); do \
-		name="$$(basename "$${page%.py}")"; \
-		printf "Exporting %s -> /%s/\n" "$$page" "$$name"; \
-		uvx marimo export html-wasm --sandbox "$$page" -o "$(SITE_DIR)/$$name" --mode run --no-show-code; \
+		slug="$$(uv run --isolated --no-project --python '>=3.12' python tools/page_export_options.py --slug "$$page")"; \
+		printf "Exporting %s -> /%s/\n" "$$page" "$$slug"; \
+		export_options="$$(uv run --isolated --no-project --python '>=3.12' python tools/page_export_options.py --export-options "$$page")"; \
+		uvx marimo export html-wasm --sandbox "$$page" -o "$(SITE_DIR)/$$slug" --mode run $$export_options; \
 	done
 	find $(SITE_DIR) -name .DS_Store -type f -delete
 
